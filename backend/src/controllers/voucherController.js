@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const fs = require("fs");
 
 async function generateVoucherNumber() {
   const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
