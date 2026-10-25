@@ -1,0 +1,136 @@
+const pool = require("../config/db");
+
+async function generateVoucherNumber() {
+  const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
+  const year = new Date().getFullYear();
+  return `VCH-${year}-${String(result.rows[0].n).padStart(4, "0")}`;
+}
+
+exports.createVoucher = async (req, res) => {
+  const { expense_date, department, title, category, description, amount } =
+    req.body;
+  if (amount !== undefined && amount !== null && !(Number(amount) > 0)) {
+    return res.status(400).json({ error: "Amount must be greater than zero" });
+  }
+  try {
+    const voucherNumber = await generateVoucherNumber();
+
+    const result = await pool.query(
+      `INSERT INTO vouchers
+      (voucher_number, expense_date, department, 
+      title, category, description, amount, employee_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [
+        voucherNumber,
+        expense_date,
+        department,
+        title,
+        category,
+        description,
+        amount,
+        req.user.id,
+      ],
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.getMyVouchers = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM vouchers WHERE employee_id=$1 ORDER BY created_at DESC`,
+      [req.user.id],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.getVoucherById = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM vouchers WHERE id=$1 AND employee_id=$2`,
+      [req.params.id, req.user.id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Voucher not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.deleteDraftVoucher = async (req, res) => {
+  try {
+    const found = await pool.query(
+      `SELECT status FROM vouchers WHERE id=$1 AND employee_id=$2`,
+      [req.params.id, req.user.id],
+    );
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: "Voucher not found" });
+    }
+    if (found.rows[0].status !== "DRAFT") {
+      return res
+        .status(400)
+        .json({ error: "Only draft vouchers can be deleted" });
+    }
+    await pool.query(`DELETE FROM vouchers WHERE id=$1 AND status='DRAFT'`, [
+      req.params.id,
+    ]);
+    res.json({ message: "Voucher deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.updateDraftVoucher = async (req, res) => {
+  const { expense_date, department, title, category, description, amount } =
+    req.body;
+  if (amount !== undefined && amount !== null && !(Number(amount) > 0)) {
+    return res.status(400).json({ error: "Amount must be greater than zero" });
+  }
+  try {
+    const found = await pool.query(
+      `SELECT status FROM vouchers WHERE id=$1 AND employee_id=$2`,
+      [req.params.id, req.user.id],
+    );
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: "Voucher not found" });
+    }
+    if (found.rows[0].status !== "DRAFT") {
+      return res
+        .status(400)
+        .json({ error: "Only draft vouchers can be edited" });
+    }
+    const result = await pool.query(
+      `UPDATE vouchers
+      SET expense_date=$1, department=$2, title=$3, category=$4,
+      description=$5, amount=$6, updated_at=NOW()
+      WHERE id=$7 AND employee_id=$8 AND status='DRAFT'
+      RETURNING *`,
+      [
+        expense_date,
+        department,
+        title,
+        category,
+        description,
+        amount,
+        req.params.id,
+        req.user.id,
+      ],
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
