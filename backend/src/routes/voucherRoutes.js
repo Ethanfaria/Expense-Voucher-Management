@@ -6,6 +6,7 @@ const {
   getVoucherById,
   deleteDraftVoucher,
   updateDraftVoucher,
+  submitVoucher,
 } = require("../controllers/voucherController");
 const{uploadEmployeeSignature}=require("../controllers/uploadController.js")
 const { handleUpload } = require("../middleware/upload");
@@ -18,5 +19,6 @@ router.get("/:id", requireRole("EMPLOYEE"), getVoucherById);
 router.delete("/:id", requireRole("EMPLOYEE"), deleteDraftVoucher);
 router.put("/:id", requireRole("EMPLOYEE"), updateDraftVoucher);
 router.post("/:id/signature", requireRole("EMPLOYEE"), handleUpload, uploadEmployeeSignature);
+router.post("/:id/submit", requireRole("EMPLOYEE"), submitVoucher);
 
 module.exports = router;

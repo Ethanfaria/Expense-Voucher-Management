@@ -1,10 +1,19 @@
 const pool = require("../config/db");
 const fs = require("fs");
 
-async function generateVoucherNumber() {
-  const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
-  const year = new Date().getFullYear();
-  return `VCH-${year}-${String(result.rows[0].n).padStart(4, "0")}`;
+    async function generateVoucherNumber() {
+    const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
+    const year = new Date().getFullYear();
+    return `VCH-${year}-${String(result.rows[0].n).padStart(4, "0")}`;
+    }
+
+function validateForSubmit(v) {
+  const errors = [];
+  if (!v.department) errors.push("Department is required");
+  if (!v.title) errors.push("Expense title is required");
+  if (!v.expense_date) errors.push("Expense date is required");
+  if (!(Number(v.amount) > 0)) errors.push("Amount must be greater than zero");
+  if (!v.employee_signature_path) errors.push("Employee signature is required");
 }
 
 exports.createVoucher = async (req, res) => {
@@ -130,6 +139,41 @@ exports.updateDraftVoucher = async (req, res) => {
       ],
     );
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.submitVoucher = async (req, res) => {
+  try {
+    const found = await pool.query(
+      `SELECT * FROM vouchers WHERE id=$1 AND employee_id=$2`,
+      [req.params.id, req.user.id],
+    );
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: "Voucher not found" });
+    }
+    const voucher = found.rows[0];
+    if (voucher.status !== "DRAFT") {
+      return res
+        .status(400)
+        .json({ error: "Only draft vouchers can be submitted" });
+    }
+    const errors = validateForSubmit(voucher);
+    if (errors.length > 0) {
+      return res
+        .status(400)
+        .json({ error: "Voucher is incomplete", details: errors });
+    }
+    const result = await pool.query(
+      `UPDATE vouchers
+      SET status='PENDING_APPROVAL', updated_at=NOW()
+      WHERE id=$1 AND employee_id=$2 AND status='DRAFT'
+      RETURNING *`,
+      [req.params.id, req.user.id],
+    );
+    return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
