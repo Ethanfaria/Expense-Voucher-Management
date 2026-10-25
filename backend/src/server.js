@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const pool = require("./config/db.js");
 const voucherRoutes = require("./routes/voucherRoutes");
+const userRoutes = require("./routes/userRoutes");
 const path = require("path");
 
 const app = express();
@@ -18,5 +19,6 @@ app.use("/api/vouchers", voucherRoutes);
 
 app.use("/uploads", express.static(path.join(__dirname,"../uploads")));
 
+app.use("/api/users", userRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

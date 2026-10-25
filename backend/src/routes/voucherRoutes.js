@@ -7,6 +7,8 @@ const {
   deleteDraftVoucher,
   updateDraftVoucher,
   submitVoucher,
+  approveVoucher,
+  rejectVoucher
 } = require("../controllers/voucherController");
 const{uploadEmployeeSignature}=require("../controllers/uploadController.js")
 const { handleUpload } = require("../middleware/upload");
@@ -20,5 +22,7 @@ router.delete("/:id", requireRole("EMPLOYEE"), deleteDraftVoucher);
 router.put("/:id", requireRole("EMPLOYEE"), updateDraftVoucher);
 router.post("/:id/signature", requireRole("EMPLOYEE"), handleUpload, uploadEmployeeSignature);
 router.post("/:id/submit", requireRole("EMPLOYEE"), submitVoucher);
+router.post("/:id/approve", requireRole("DIRECTOR"), handleUpload, approveVoucher);
+router.post("/:id/reject", requireRole("DIRECTOR"), rejectVoucher);
 
 module.exports = router;

@@ -1,11 +1,11 @@
 const pool = require("../config/db");
 const fs = require("fs");
 
-    async function generateVoucherNumber() {
-    const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
-    const year = new Date().getFullYear();
-    return `VCH-${year}-${String(result.rows[0].n).padStart(4, "0")}`;
-    }
+async function generateVoucherNumber() {
+  const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
+  const year = new Date().getFullYear();
+  return `VCH-${year}-${String(result.rows[0].n).padStart(4, "0")}`;
+}
 
 function validateForSubmit(v) {
   const errors = [];
@@ -173,6 +173,103 @@ exports.submitVoucher = async (req, res) => {
       RETURNING *`,
       [req.params.id, req.user.id],
     );
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.approveVoucher = async (req, res) => {
+  try {
+    const found = await pool.query(`SELECT status FROM vouchers WHERE id=$1`, [
+      req.params.id,
+    ]);
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: "Voucher not found" });
+    }
+    if (found.rows[0].status !== "PENDING_APPROVAL") {
+      return res.status(400).json({
+        error: "Only pending vouchers can be approved",
+      });
+    }
+    let signaturePath = null;
+    if (req.file) {
+      signaturePath = `/uploads/${req.file.filename}`;
+    } else {
+      const me = await pool.query(
+        `SELECT signature_path FROM users WHERE id = $1`,
+        [req.user.id],
+      );
+
+      signaturePath = me.rows[0]?.signature_path;
+    }
+
+    if (!signaturePath) {
+      return res.status(400).json({
+        error: "Director signature is required",
+      });
+    }
+    const result = await pool.query(
+      `UPDATE vouchers
+       SET status = 'APPROVED',
+           director_id = $1,
+           director_signature_path = $2,
+           approved_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $3
+         AND status = 'PENDING_APPROVAL'
+       RETURNING *`,
+      [req.user.id, signaturePath, req.params.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: "Voucher could not be approved",
+      });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.rejectVoucher = async (req, res) => {
+  const { rejection_reason } = req.body;
+  if (typeof rejection_reason !== "string" || !rejection_reason.trim()) {
+    return res.status(400).json({ error: "Rejection reason is required" });
+  }
+  try {
+    const found = await pool.query(`SELECT status FROM vouchers WHERE id=$1`, [
+      req.params.id,
+    ]);
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: "Voucher not found" });
+    }
+    if (found.rows[0].status !== "PENDING_APPROVAL") {
+      return res.status(400).json({
+        error: "Only pending vouchers can be rejected",
+      });
+    }
+    
+    const result = await pool.query(
+      `UPDATE vouchers
+       SET status = 'REJECTED',
+           director_id = $1,
+           rejection_reason = $2,
+           updated_at = NOW()
+       WHERE id = $3
+         AND status = 'PENDING_APPROVAL'
+       RETURNING *`,
+      [req.user.id, rejection_reason.trim(), req.params.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: "Voucher could not be rejected",
+      });
+    }
     return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
