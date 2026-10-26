@@ -6,5 +6,5 @@ const {saveMySignature}=require('../controllers/userController')
 const router = express.Router();
 router.use(authenticate)
 
-router.post("me/signature",requireRole("DIRECTOR"), handleUpload, saveMySignature)
+router.post("/me/signature",requireRole("DIRECTOR"), handleUpload, saveMySignature)
 module.exports=router;

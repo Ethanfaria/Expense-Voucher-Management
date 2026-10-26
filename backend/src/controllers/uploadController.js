@@ -7,7 +7,7 @@ exports.uploadEmployeeSignature = async (req, res) => {
   }
   try {
     const found = await pool.query(
-      `SELECT status FROM voucher WHERE id=$1 AND employee_id=$2`,
+      `SELECT status FROM vouchers WHERE id=$1 AND employee_id=$2`,
       [req.params.id, req.user.id],
     );
     if (found.rows.length === 0) {
