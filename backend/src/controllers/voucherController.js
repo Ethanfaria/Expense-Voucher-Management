@@ -1,5 +1,4 @@
 const pool = require("../config/db");
-const fs = require("fs");
 
 async function generateVoucherNumber() {
   const result = await pool.query("SELECT nextval('voucher_number_seq') AS n");
@@ -14,6 +13,8 @@ function validateForSubmit(v) {
   if (!v.expense_date) errors.push("Expense date is required");
   if (!(Number(v.amount) > 0)) errors.push("Amount must be greater than zero");
   if (!v.employee_signature_path) errors.push("Employee signature is required");
+
+  return errors;
 }
 
 exports.createVoucher = async (req, res) => {
@@ -64,17 +65,32 @@ exports.getMyVouchers = async (req, res) => {
 
 exports.getVoucherById = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT * FROM vouchers WHERE id=$1 AND employee_id=$2`,
-      [req.params.id, req.user.id],
-    );
+    let sql = `
+      SELECT v.*, u.name AS employee_name
+      FROM vouchers v
+      JOIN users u ON u.id = v.employee_id
+      WHERE v.id = $1
+    `;
+
+    const params = [req.params.id];
+
+    if (req.user.role === "EMPLOYEE") {
+      sql += ` AND v.employee_id = $2`;
+      params.push(req.user.id);
+    } else {
+      sql += ` AND v.status <> 'DRAFT'`;
+    }
+
+    const result = await pool.query(sql, params);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Voucher not found" });
     }
-    res.json(result.rows[0]);
+
+    return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -252,7 +268,7 @@ exports.rejectVoucher = async (req, res) => {
         error: "Only pending vouchers can be rejected",
       });
     }
-    
+
     const result = await pool.query(
       `UPDATE vouchers
        SET status = 'REJECTED',
@@ -274,5 +290,22 @@ exports.rejectVoucher = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.getAllVouchers = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT v.*, u.name AS employee_name
+       FROM vouchers v
+       JOIN users u ON u.id = v.employee_id
+       WHERE v.status <> 'DRAFT'
+       ORDER BY v.created_at DESC`,
+    );
+
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 };

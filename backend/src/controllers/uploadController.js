@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const fs = require("fs");
 
 exports.uploadEmployeeSignature = async (req, res) => {
   if (!req.file) {
