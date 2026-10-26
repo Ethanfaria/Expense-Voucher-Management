@@ -12,3 +12,14 @@ export const formatDate = (d) => {
     { day: "2-digit", month: "short", year: "numeric" }
   );
 };
+
+export const formatDateTime = (ts) => {
+  if (!ts) return "-";
+  return new Date(ts).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};

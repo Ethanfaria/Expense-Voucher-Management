@@ -66,11 +66,13 @@ exports.getMyVouchers = async (req, res) => {
 exports.getVoucherById = async (req, res) => {
   try {
     let sql = `
-      SELECT v.*, u.name AS employee_name
-      FROM vouchers v
-      JOIN users u ON u.id = v.employee_id
-      WHERE v.id = $1
-    `;
+  SELECT v.*, u.name AS employee_name, u.employee_code,
+         d.name AS director_name
+  FROM vouchers v
+  JOIN users u ON u.id = v.employee_id
+  LEFT JOIN users d ON d.id = v.director_id
+  WHERE v.id = $1
+`;
 
     const params = [req.params.id];
 

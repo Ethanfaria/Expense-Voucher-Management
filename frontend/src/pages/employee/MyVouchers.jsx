@@ -20,7 +20,7 @@ export default function MyVouchers() {
   useEffect(() => {
     let cancelled = false;
     api
-      .get("/vouchers/mine")
+      .get("/vouchers/me")
       .then((res) => !cancelled && setVouchers(res.data))
       .catch((err) =>
         !cancelled &&

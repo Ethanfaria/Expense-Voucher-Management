@@ -6,6 +6,7 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import MyVouchers from "./pages/employee/MyVouchers";
+import VoucherDetails from "./pages/VoucherDetails";
 
 function PagePlaceholder({ title }) {
   return <h1 className="text-xl font-semibold text-[#1b7f8c]">{title}</h1>;
@@ -30,6 +31,7 @@ export default function App() {
       >
         <Route path="/employee" element={<EmployeeDashboard />} />
         <Route path="/employee/vouchers" element={<MyVouchers />} />
+        <Route path="/employee/vouchers/:id" element={<VoucherDetails />} />
       </Route>
 
       <Route
@@ -40,6 +42,7 @@ export default function App() {
         }
       >
         <Route path="/director" element={<PagePlaceholder title="Director Dashboard" />} />
+        <Route path="/director/vouchers/:id" element={<VoucherDetails />} />
       </Route>
 
       <Route
@@ -50,6 +53,7 @@ export default function App() {
         }
       >
         <Route path="/accounts" element={<PagePlaceholder title="Accounts Dashboard" />} />
+        <Route path="/accounts/vouchers/:id" element={<VoucherDetails />} />
       </Route>
 
       <Route path="*" element={<HomeRedirect />} />
