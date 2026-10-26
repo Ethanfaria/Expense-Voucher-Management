@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
+import MyVouchers from "./pages/employee/MyVouchers";
 
 function PagePlaceholder({ title }) {
   return <h1 className="text-xl font-semibold text-[#1b7f8c]">{title}</h1>;
@@ -28,6 +29,7 @@ export default function App() {
         }
       >
         <Route path="/employee" element={<EmployeeDashboard />} />
+        <Route path="/employee/vouchers" element={<MyVouchers />} />
       </Route>
 
       <Route
