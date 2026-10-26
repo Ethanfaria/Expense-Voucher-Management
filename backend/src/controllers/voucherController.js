@@ -295,12 +295,80 @@ exports.rejectVoucher = async (req, res) => {
 
 exports.getAllVouchers = async (req, res) => {
   try {
+    const {
+      search,
+      status,
+      department,
+      category,
+      from,
+      to,
+      min_amount,
+      max_amount,
+      sort,
+      order,
+    } = req.query;
+
+    const conditions = [`v.status <> 'DRAFT'`];
+    const params = [];
+
+    if (status) {
+      params.push(status);
+      conditions.push(`v.status = $${params.length}`);
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(
+        `(v.voucher_number ILIKE $${params.length} OR u.name ILIKE $${params.length})`,
+      );
+    }
+
+    if (department) {
+      params.push(`%${department}%`);
+      conditions.push(`v.department ILIKE $${params.length}`);
+    }
+
+    if (category) {
+      params.push(`%${category}%`);
+      conditions.push(`v.category ILIKE $${params.length}`);
+    }
+
+    if (from) {
+      params.push(from);
+      conditions.push(`v.expense_date >= $${params.length}`);
+    }
+
+    if (to) {
+      params.push(to);
+      conditions.push(`v.expense_date <= $${params.length}`);
+    }
+
+    if (min_amount) {
+      params.push(min_amount);
+      conditions.push(`v.amount >= $${params.length}`);
+    }
+
+    if (max_amount) {
+      params.push(max_amount);
+      conditions.push(`v.amount <= $${params.length}`);
+    }
+
+    const sortColumns = {
+      created_at: "v.created_at",
+      amount: "v.amount",
+      expense_date: "v.expense_date",
+      status: "v.status",
+    };
+    const sortCol = sortColumns[sort] || "v.created_at";
+    const sortDir = order === "asc" ? "ASC" : "DESC";
+
     const result = await pool.query(
       `SELECT v.*, u.name AS employee_name
        FROM vouchers v
        JOIN users u ON u.id = v.employee_id
-       WHERE v.status <> 'DRAFT'
-       ORDER BY v.created_at DESC`,
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY ${sortCol} ${sortDir}`,
+      params,
     );
 
     return res.json(result.rows);
