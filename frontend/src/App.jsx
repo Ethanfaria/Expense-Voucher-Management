@@ -1,30 +1,18 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { roleHome } from "./utils/roles";
+import { getRoleHome } from "./utils/roles";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 import Login from "./pages/Login";
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 
-function Placeholder({ title }) {
-  const { user, logout } = useAuth();
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="mt-2">
-        Logged in as {user.name} ({user.role})
-      </p>
-      <button
-        onClick={logout}
-        className="mt-4 px-4 py-2 bg-gray-800 text-white rounded"
-      >
-        Log out
-      </button>
-    </div>
-  );
+function PagePlaceholder({ title }) {
+  return <h1 className="text-xl font-semibold text-[#1b7f8c]">{title}</h1>;
 }
 
 function HomeRedirect() {
   const { user } = useAuth();
-  return <Navigate to={user ? roleHome[user.role] : "/login"} replace />;
+  return <Navigate to={user ? getRoleHome(user.role) : "/login"} replace />;
 }
 
 export default function App() {
@@ -33,31 +21,35 @@ export default function App() {
       <Route path="/login" element={<Login />} />
 
       <Route
-        path="/employee"
         element={
           <ProtectedRoute roles={["EMPLOYEE"]}>
-            <Placeholder title="Employee Dashboard" />
+            <Layout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route path="/employee" element={<EmployeeDashboard />} />
+      </Route>
+
       <Route
-        path="/director"
         element={
           <ProtectedRoute roles={["DIRECTOR"]}>
-            <Placeholder title="Director Dashboard" />
+            <Layout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route path="/director" element={<PagePlaceholder title="Director Dashboard" />} />
+      </Route>
+
       <Route
-        path="/accounts"
         element={
           <ProtectedRoute roles={["ACCOUNTS"]}>
-            <Placeholder title="Accounts Dashboard" />
+            <Layout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route path="/accounts" element={<PagePlaceholder title="Accounts Dashboard" />} />
+      </Route>
 
-      <Route path="/" element={<HomeRedirect />} />
       <Route path="*" element={<HomeRedirect />} />
     </Routes>
   );
