@@ -8,10 +8,9 @@ import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import MyVouchers from "./pages/employee/MyVouchers";
 import VoucherDetails from "./pages/VoucherDetails";
 import VoucherForm from "./pages/employee/VoucherForm";
-
-function PagePlaceholder({ title }) {
-  return <h1 className="text-xl font-semibold text-[#1b7f8c]">{title}</h1>;
-}
+import DirectorDashboard from "./pages/director/DirectorDashboard";
+import AccountsDashboard from "./pages/accounts/AccountsDashboard";
+import VoucherList from "./pages/VoucherList";
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -44,9 +43,20 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+        <Route path="/director" element={<DirectorDashboard />} />
         <Route
-          path="/director"
-          element={<PagePlaceholder title="Director Dashboard" />}
+          path="/director/pending"
+          element={
+            <VoucherList
+              key="pending"
+              title="Pending Approvals"
+              fixedStatus="PENDING_APPROVAL"
+            />
+          }
+        />
+        <Route
+          path="/director/vouchers"
+          element={<VoucherList key="all" title="All Vouchers" />}
         />
         <Route path="/director/vouchers/:id" element={<VoucherDetails />} />
       </Route>
@@ -58,9 +68,10 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+        <Route path="/accounts" element={<AccountsDashboard />} />
         <Route
-          path="/accounts"
-          element={<PagePlaceholder title="Accounts Dashboard" />}
+          path="/accounts/vouchers"
+          element={<VoucherList key="all" title="All Vouchers" />}
         />
         <Route path="/accounts/vouchers/:id" element={<VoucherDetails />} />
       </Route>
