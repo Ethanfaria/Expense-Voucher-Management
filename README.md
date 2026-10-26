@@ -14,6 +14,8 @@ A web-based system that digitizes expense voucher creation, approval and trackin
 | Database | PostgreSQL (plain SQL via the `pg` library, no ORM) |
 | Auth | JWT (`jsonwebtoken`) + `bcrypt` password hashing |
 | File upload | `multer` (images stored on disk, path stored in DB) |
+| Frontend | React (Vite), React Router, Tailwind CSS, axios |
+| Icons | Font Awesome |
 
 ## Project structure
 
@@ -30,17 +32,38 @@ expense-voucher-system/
 │   │   ├── routes/                 # authRoutes, voucherRoutes,
 │   │   │                           # userRoutes, dashboardRoutes
 │   │   ├── seed.js                 # creates one test user per role
+│   │   ├── seedData.js             # fills the database with demo data
 │   │   └── server.js               # app entry point
 │   ├── uploads/                    # signature images
 │   ├── schema.sql                  # database schema
 │   ├── .env.example
 │   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── api/axios.js            # axios instance (adds the JWT to requests)
+│   │   ├── context/AuthContext.jsx # logged-in user, login, logout
+│   │   ├── components/             # Layout, ProtectedRoute, StatusBadge,
+│   │   │                           # StatCard, RecentList, Modal
+│   │   ├── hooks/useFetch.js
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── VoucherDetails.jsx  # shared by all three roles
+│   │   │   ├── VoucherList.jsx     # search / filter / sort (Director, Accounts)
+│   │   │   ├── employee/           # EmployeeDashboard, MyVouchers, VoucherForm
+│   │   │   ├── director/           # DirectorDashboard
+│   │   │   └── accounts/           # AccountsDashboard
+│   │   ├── utils/                  # roles.js, format.js
+│   │   └── App.jsx                 # routes
+│   ├── .env.example
+│   └── package.json
 └── README.md
 ```
 
-## Setup (backend)
+## Setup
 
 **Prerequisites:** Node.js 18+ and PostgreSQL.
+
+### Backend
 
 ```bash
 # 1. Create the database
@@ -57,16 +80,32 @@ psql voucher_db -f schema.sql
 cp .env.example .env        # on Windows: copy .env.example .env
 # then edit .env with your database password and a long random JWT secret
 
-# 5. Seed test users
+# 5. Create the test users (one per role)
 node src/seed.js
 
-# 6. Start the server
+# 6. Optional: fill the database with demo data
+node src/seedData.js --reset
+
+# 7. Start the server
 npm run dev
 ```
 
 Check it is running: open `http://localhost:5000/api/health`. A timestamp means Node and PostgreSQL are connected.
 
-### Environment variables (`.env.example`)
+### Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env        # on Windows: copy .env.example .env
+npm run dev
+```
+
+Open `http://localhost:5173`.
+
+### Environment variables
+
+`backend/.env.example`
 
 ```
 PORT=5000
@@ -74,7 +113,13 @@ DATABASE_URL=postgresql://postgres:your_password@localhost:5432/voucher_db
 JWT_SECRET=replace_with_a_long_random_string
 ```
 
-### Seeded test users
+`frontend/.env.example`
+
+```
+VITE_API_URL=http://localhost:5000
+```
+
+### Test users
 
 All use the password `password123`.
 
@@ -83,6 +128,27 @@ All use the password `password123`.
 | Employee | employee@test.com |
 | Director | director@test.com |
 | Accounts | accounts@test.com |
+
+`seedData.js` also adds five more employees: `ravi@test.com`, `priya@test.com`, `arjun@test.com`, `sneha@test.com` and `rohan@test.com`.
+
+### Demo data
+
+`node src/seedData.js` adds 6 employees and 66 vouchers covering every status (draft, pending, approved, rejected), spread over roughly the last 70 days, with generated signature images and a saved signature for the Director. It uses fixed random numbers, so every run produces the same data.
+
+- `node src/seedData.js` adds the data on top of what exists.
+- `node src/seedData.js --reset` deletes **all vouchers** first and restarts voucher numbering at `0001`. Users are never deleted.
+
+Run `node src/seed.js` first, because `seedData.js` expects the Director user to exist.
+
+## Screens by role
+
+| Role | Screens |
+|---|---|
+| Employee | Dashboard, My Vouchers (with status tabs), New Voucher, Edit Draft, Voucher Details |
+| Director | Dashboard, Pending Approvals, All Vouchers (search, filter, sort), Voucher Details with Approve and Reject |
+| Accounts | Dashboard, All Vouchers (search, filter, sort), Voucher Details with both signatures |
+
+Routes are protected by role. A logged-in user who opens another role's URL is sent back to their own home page, and a logged-out user is sent to the login page.
 
 ## Database schema
 
@@ -158,8 +224,8 @@ Error responses use the shape `{ "error": "message" }`. `401` means missing or i
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | POST | `/vouchers` | Employee | Create a draft. Body: `expense_date, department, title, category, description, amount`. |
-| GET | `/vouchers/mine` | Employee | List the employee's own vouchers, newest first. |
-| GET | `/vouchers/:id` | Employee, Director, Accounts | Voucher details. Employees see only their own; Director and Accounts see everything except drafts. |
+| GET | `/vouchers/me` | Employee | List the employee's own vouchers, newest first. |
+| GET | `/vouchers/:id` | Employee, Director, Accounts | Voucher details, including `employee_name`, `employee_code` and `director_name`. Employees see only their own; Director and Accounts see everything except drafts. |
 | PUT | `/vouchers/:id` | Employee | Edit a draft (full replace of the 6 editable fields). |
 | DELETE | `/vouchers/:id` | Employee | Delete a draft. |
 | POST | `/vouchers/:id/signature` | Employee | Multipart form, field `signature`. Attaches the employee signature to a draft. |
@@ -167,6 +233,8 @@ Error responses use the shape `{ "error": "message" }`. `401` means missing or i
 | GET | `/vouchers` | Director, Accounts | List all non-draft vouchers (see query parameters below). |
 | POST | `/vouchers/:id/approve` | Director | Optional multipart `signature`; otherwise uses the saved signature. `400` if neither exists. |
 | POST | `/vouchers/:id/reject` | Director | Body: `{ rejection_reason }` (required). |
+
+Voucher ids in the path must be whole numbers; anything else returns `404`.
 
 #### List query parameters (`GET /vouchers`)
 
@@ -200,6 +268,7 @@ The Director's "Pending Approvals" screen is `/vouchers?status=PENDING_APPROVAL`
 - Update endpoints whitelist editable fields, so a client cannot set `status` directly.
 - All queries are parameterized (no string-built SQL with user input). Sort columns are chosen from a fixed whitelist.
 - Uploads are restricted to PNG/JPG, max 2 MB, and saved under random filenames.
+- The frontend removes the stored token and returns to the login page when the API answers `401`.
 
 ## Assumptions
 
@@ -213,3 +282,7 @@ The Director's "Pending Approvals" screen is `/vouchers?status=PENDING_APPROVAL`
 8. Uploaded files are not deleted when a voucher is deleted (kept for simplicity).
 9. User accounts are seeded, since the spec has no registration flow.
 10. Editing a draft is a full replace: the request must send all six editable fields every time.
+11. Amounts are displayed in Indian rupees (₹), since the spec does not name a currency.
+12. List filters are applied when the user clicks Apply, not on every keystroke, so each search is one request.
+13. Lists return all matching vouchers without pagination.
+14. `DATE` columns are returned as plain `YYYY-MM-DD` strings, to avoid timezone shifts.
